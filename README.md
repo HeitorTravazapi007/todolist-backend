@@ -1,6 +1,6 @@
-# Todolist — React + Fastify + MySQL
+# Todolist — Vite + JavaScript + Fastify + MySQL
 
-Projeto de lista de tarefas desenvolvido para a disciplina de PW3 (Programação Web). A interface fica no React (Vite), a API no Node.js com Fastify e os dados são guardados no MySQL.
+Projeto de lista de tarefas desenvolvido para a disciplina de PW3 (Programação Web). A interface é carregada pelo Vite e usa JavaScript, CSS e manipulação direta do DOM; a API é implementada com Node.js e Fastify, e os dados são guardados no MySQL.
 
 ## Funcionalidades
 
@@ -12,6 +12,8 @@ Projeto de lista de tarefas desenvolvido para a disciplina de PW3 (Programação
 - Editar o título e o prazo de uma tarefa;
 - Excluir tarefas;
 - Painel com totais, pendentes e concluídas;
+- Barra de progresso das tarefas concluídas;
+- Alternar entre tema claro e escuro com preferência salva no navegador;
 - Destaque visual para prazos vencidos (atrasadas).
 
 ## Regras de negócio
@@ -23,12 +25,14 @@ Projeto de lista de tarefas desenvolvido para a disciplina de PW3 (Programação
 
 ## Tecnologias utilizadas
 
-| Camada    | Tecnologia        |
-|-----------|-------------------|
-| Frontend  | React, Vite       |
-| Backend   | Node.js, Fastify  |
-| Banco     | MySQL             |
+| Camada | Tecnologia |
+|--------|------------|
+| Frontend | Vite, JavaScript, CSS |
+| Backend | Node.js, Fastify |
+| Banco | MySQL |
 | Cliente SQL | mysql2 (pool de conexões) |
+
+> O frontend atual não utiliza React. A implementação usa JavaScript vanilla e pode ser executada diretamente pelo Vite.
 
 ## Pré-requisitos
 
@@ -70,15 +74,36 @@ DB_NAME=todolist
 CORS_ORIGIN=http://localhost:5173
 ```
 
+O arquivo `.env` contém configuração local e não deve ser publicado.
+
 ### 3. Frontend
 
 ```bash
 cd frontend
 npm install
+cp .env.example .env
 npm run dev
 ```
 
+No PowerShell, o comando para copiar o arquivo pode ser substituído por:
+
+```powershell
+Copy-Item .env.example .env
+```
+
 A interface sobe em `http://localhost:5173`.
+
+A URL base da API pode ser alterada em `frontend/.env` sem modificar o código:
+
+```env
+VITE_API_URL=http://localhost:3333
+```
+
+Use a URL base da API, sem `/api/tasks` no final. A aplicação usa `http://localhost:3333` como fallback.
+
+## Tema claro/escuro
+
+O botão no canto superior direito alterna o tema. A escolha é salva em `localStorage` com a chave `todolist-tema` e será restaurada ao carregar a página.
 
 ## Endpoints da API
 
@@ -121,12 +146,31 @@ Content-Type: application/json
 DELETE http://localhost:3333/api/tasks/1
 ```
 
+## Validação
+
+Para gerar o build do frontend:
+
+```bash
+cd frontend
+npm run build
+```
+
+Para verificar a sintaxe do backend:
+
+```bash
+cd backend
+node --check src/server.js
+node --check src/routes/tasks.js
+```
+
+Também é importante validar manualmente criação, edição, conclusão, exclusão, pesquisa, filtros, barra de progresso, tema claro/escuro e responsividade.
+
 ## Estrutura de pastas
 
 ```
 todolist/
 ├── backend/
-│   ├── .env
+│   ├── .env                 # configuração local, não versionada
 │   ├── rotas.http
 │   ├── schema.sql
 │   └── src/
@@ -135,6 +179,7 @@ todolist/
 │       └── routes/
 │           └── tasks.js
 ├── frontend/
+│   ├── .env.example
 │   ├── index.html
 │   └── src/
 │       ├── main.js

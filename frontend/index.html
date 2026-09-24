@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="pt-BR">
+<html lang="pt-BR" data-theme="claro">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -9,11 +9,24 @@
   <body>
     <main class="container">
       <header class="topo">
-        <h1>Minhas tarefas</h1>
-        <p class="subtitulo">Organize o seu dia de um jeito simples.</p>
+        <div>
+          <h1>Minhas tarefas</h1>
+          <p class="subtitulo">Organize o seu dia de um jeito simples.</p>
+        </div>
+        <button
+          type="button"
+          class="alternar-tema"
+          id="alternar-tema"
+          aria-label="Ativar tema escuro"
+          aria-pressed="false"
+          title="Ativar tema escuro"
+        >
+          <span class="icone-tema" aria-hidden="true">☾</span>
+          <span class="texto-tema">Tema escuro</span>
+        </button>
       </header>
 
-      <section class="painel">
+      <section class="painel" aria-label="Resumo das tarefas">
         <div class="cartao" id="cartao-total">
           <strong>-</strong>
           <span>Totais</span>
@@ -25,6 +38,25 @@
         <div class="cartao" id="cartao-concluidas">
           <strong>-</strong>
           <span>Concluídas</span>
+        </div>
+      </section>
+
+      <section class="progresso" aria-labelledby="progresso-titulo">
+        <div class="progresso-cabecalho">
+          <span id="progresso-titulo">Progresso</span>
+          <strong id="progresso-valor">0%</strong>
+        </div>
+        <div
+          class="progresso-trilho"
+          id="progresso-trilho"
+          role="progressbar"
+          aria-valuemin="0"
+          aria-valuemax="100"
+          aria-valuenow="0"
+          aria-valuetext="0% concluído"
+          aria-label="Percentual de tarefas concluídas"
+        >
+          <span class="progresso-barra" id="progresso-barra"></span>
         </div>
       </section>
 

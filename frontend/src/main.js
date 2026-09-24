@@ -1,4 +1,6 @@
-const API_URL = 'http://localhost:3333/api/tasks';
+const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3333').replace(/\/+$/, '');
+const API_URL = `${API_BASE_URL}/api/tasks`;
+const THEME_STORAGE_KEY = 'todolist-tema';
 
 const lista = document.getElementById('lista');
 const vazio = document.getElementById('vazio');
@@ -7,6 +9,10 @@ const formulario = document.getElementById('formulario');
 const campoTitulo = document.getElementById('titulo');
 const campoPrazo = document.getElementById('prazo');
 const campoBusca = document.getElementById('busca');
+const botaoTema = document.getElementById('alternar-tema');
+const progressoValor = document.getElementById('progresso-valor');
+const progressoTrilho = document.getElementById('progresso-trilho');
+const progressoBarra = document.getElementById('progresso-barra');
 
 let statusAtual = 'all';
 let termoBusca = '';
@@ -26,6 +32,39 @@ function formatarData(dia) {
   return `${diaNr}/${mes}/${ano}`;
 }
 
+function temaSalvo() {
+  try {
+    return localStorage.getItem(THEME_STORAGE_KEY) === 'escuro' ? 'escuro' : 'claro';
+  } catch {
+    return 'claro';
+  }
+}
+
+function aplicarTema(tema) {
+  const temaEscuro = tema === 'escuro';
+  document.documentElement.dataset.theme = temaEscuro ? 'escuro' : 'claro';
+
+  if (!botaoTema) return;
+
+  const rotulo = temaEscuro ? 'Ativar tema claro' : 'Ativar tema escuro';
+  botaoTema.setAttribute('aria-pressed', String(temaEscuro));
+  botaoTema.setAttribute('aria-label', rotulo);
+  botaoTema.title = rotulo;
+  botaoTema.querySelector('.icone-tema').textContent = temaEscuro ? '☀' : '☾';
+  botaoTema.querySelector('.texto-tema').textContent = temaEscuro ? 'Tema claro' : 'Tema escuro';
+}
+
+function alternarTema() {
+  const novoTema = document.documentElement.dataset.theme === 'escuro' ? 'claro' : 'escuro';
+  aplicarTema(novoTema);
+
+  try {
+    localStorage.setItem(THEME_STORAGE_KEY, novoTema);
+  } catch {
+    // A aplicação continua funcionando mesmo se o navegador bloquear o armazenamento.
+  }
+}
+
 function mostrarErro(mensagem) {
   erro.textContent = mensagem;
   erro.hidden = false;
@@ -33,6 +72,11 @@ function mostrarErro(mensagem) {
 
 function esconderErro() {
   erro.hidden = true;
+}
+
+async function mensagemDeErro(resposta, mensagemPadrao) {
+  const dados = await resposta.json().catch(() => ({}));
+  return dados.message || mensagemPadrao;
 }
 
 function validarEntrada(titulo, prazo) {
@@ -44,10 +88,18 @@ function validarEntrada(titulo, prazo) {
 }
 
 function atualizarTotais(totais) {
-  document.getElementById('cartao-total').querySelector('strong').textContent = totais.total;
-  document.getElementById('cartao-concluidas').querySelector('strong').textContent = totais.completed;
-  document.getElementById('cartao-pendentes').querySelector('strong').textContent =
-    totais.total - totais.completed;
+  const total = Number(totais.total) || 0;
+  const concluidas = Math.min(Number(totais.completed) || 0, total);
+  const percentual = total > 0 ? Math.round((concluidas / total) * 100) : 0;
+
+  document.getElementById('cartao-total').querySelector('strong').textContent = total;
+  document.getElementById('cartao-concluidas').querySelector('strong').textContent = concluidas;
+  document.getElementById('cartao-pendentes').querySelector('strong').textContent = total - concluidas;
+
+  progressoValor.textContent = `${percentual}%`;
+  progressoBarra.style.width = `${percentual}%`;
+  progressoTrilho.setAttribute('aria-valuenow', percentual);
+  progressoTrilho.setAttribute('aria-valuetext', `${percentual}% concluído`);
 }
 
 function montarItem(tarefa) {
@@ -55,12 +107,12 @@ function montarItem(tarefa) {
   espaco.className = 'item';
   espaco.dataset.id = tarefa.id;
 
-  if (tarefa.completed === 1) {
+  const concluida = Number(tarefa.completed) === 1;
+  if (concluida) {
     espaco.classList.add('concluida');
   }
 
-  const vencida =
-    tarefa.completed === 0 && tarefa.due_date && tarefa.due_date < hojeLocal();
+  const vencida = !concluida && tarefa.due_date && tarefa.due_date < hojeLocal();
 
   const prazo = tarefa.due_date
     ? `Vence em ${formatarData(tarefa.due_date)}`
@@ -68,7 +120,7 @@ function montarItem(tarefa) {
 
   espaco.innerHTML = `
     <label class="caixa" title="Marcar como concluída">
-      <input type="checkbox" data-acao="toggle" ${tarefa.completed === 1 ? 'checked' : ''} />
+      <input type="checkbox" data-acao="toggle" ${concluida ? 'checked' : ''} />
       <span></span>
     </label>
     <div class="conteudo">
@@ -152,28 +204,33 @@ async function criarTarefa(titulo, prazo) {
     });
 
     if (!resposta.ok) {
-      const dados = await resposta.json().catch(() => ({}));
-      throw new Error(dados.message || 'Não foi possível adicionar.');
+      throw new Error(await mensagemDeErro(resposta, 'Não foi possível adicionar.'));
     }
 
     campoTitulo.value = '';
     campoPrazo.value = '';
     await carregarTarefas();
   } catch (err) {
-    mostrarErro(err.message);
+    mostrarErro(err.message || 'Não foi possível adicionar.');
   }
 }
 
 async function alternarConclusao(tarefa) {
   try {
-    await fetch(`${API_URL}/${tarefa.id}`, {
+    const concluida = Number(tarefa.completed) === 1;
+    const resposta = await fetch(`${API_URL}/${tarefa.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ completed: !tarefa.completed })
+      body: JSON.stringify({ completed: !concluida })
     });
+
+    if (!resposta.ok) {
+      throw new Error(await mensagemDeErro(resposta, 'Não foi possível atualizar a tarefa.'));
+    }
+
     await carregarTarefas();
-  } catch {
-    mostrarErro('Erro ao atualizar a tarefa.');
+  } catch (err) {
+    mostrarErro(err.message || 'Erro ao atualizar a tarefa.');
   }
 }
 
@@ -191,22 +248,27 @@ async function salvarEdicao(tarefa, titulo, prazo) {
       body: JSON.stringify({ title: titulo, dueDate: prazo || null })
     });
     if (!resposta.ok) {
-      const dados = await resposta.json().catch(() => ({}));
-      throw new Error(dados.message || 'Não foi possível salvar a edição.');
+      throw new Error(await mensagemDeErro(resposta, 'Não foi possível salvar a edição.'));
     }
     await carregarTarefas();
   } catch (err) {
-    mostrarErro(err.message);
+    mostrarErro(err.message || 'Não foi possível salvar a edição.');
   }
 }
 
 async function excluirTarefa(tarefa) {
   if (!window.confirm(`Excluir a tarefa "${tarefa.title}"?`)) return;
+
   try {
-    await fetch(`${API_URL}/${tarefa.id}`, { method: 'DELETE' });
+    const resposta = await fetch(`${API_URL}/${tarefa.id}`, { method: 'DELETE' });
+
+    if (!resposta.ok) {
+      throw new Error(await mensagemDeErro(resposta, 'Não foi possível excluir a tarefa.'));
+    }
+
     await carregarTarefas();
-  } catch {
-    mostrarErro('Erro ao excluir a tarefa.');
+  } catch (err) {
+    mostrarErro(err.message || 'Erro ao excluir a tarefa.');
   }
 }
 
@@ -301,5 +363,8 @@ campoBusca.addEventListener('input', () => {
 });
 
 campoPrazo.min = hojeLocal();
+
+aplicarTema(temaSalvo());
+if (botaoTema) botaoTema.addEventListener('click', alternarTema);
 
 carregarTarefas();
